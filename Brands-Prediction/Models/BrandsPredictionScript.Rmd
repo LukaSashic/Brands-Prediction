@@ -1,0 +1,252 @@
+---
+title: "Second Try"
+author: "Sasa Lukic"
+date: "15 10 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##load libraries
+
+```{r}
+library(dplyr)
+library(caret)
+library(ggplot2)
+library(rpart.plot)
+```
+
+##load data
+
+
+```{r load data}
+
+brands <- read.csv(file="BelkinElagoComplete.csv", sep = ";")
+
+brands_incomplete <-read.csv(file="SurveyIncomplete.csv", sep = ";")
+
+head(brands)
+
+head(brands_incomplete)
+
+glimpse(brands)
+
+glimpse(brands_incomplete)
+
+```
+# preprocess
+```{r filter elevel}
+
+ brands_incomplete<- 
+   
+   brands_incomplete  %>% 
+  
+  filter(elevel>0 ) 
+ 
+ 
+ 
+ head(brands_incomplete)
+ 
+ unique(brands_incomplete$elevel)
+ 
+ dim(brands_incomplete)
+ 
+ sapply(brands_incomplete, class)
+ 
+``` 
+ 
+## EDA
+
+```{r basic exploration}
+
+summary(brands)
+
+
+```
+
+
+##  Split data
+
+```{r}
+
+set.seed(998)
+
+inTrain <- createDataPartition(y = brands$brand, p = .75, list = FALSE)
+
+str(inTrain)
+
+
+training <- brands[ inTrain,]
+testing  <- brands[-inTrain,]
+
+```
+
+## cross validation
+
+```{r cv}
+
+#10 folds repeat 3 times
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        repeats=3)
+
+#Metric compare model is Accuracy
+metric <- "Accuracy"
+
+```
+
+## Random Forest Model Tuned
+
+```{r RFModel, , include=FALSE}
+
+#mtry <- sqrt(ncol(training))
+tunegrid <- expand.grid(.mtry= c(2,3,4))
+RFModel <- train(brand~., data=training, 
+                 method='rf', 
+                 metric='Accuracy', 
+                 preProcess=c("scale","center"),
+                 tuneGrid=tunegrid, 
+                 trControl=ctrl)
+
+saveRDS(RFModel, "RFModel.rds")
+print(RFModel)
+```
+```{r eval=FALSE, include=FALSE}
+
+set.seed(1)
+bestMtry <- tuneRF(x,y, stepFactor = 1.5, improve = 1e-5, ntree = 500)
+
+
+```
+
+
+## Random Forest Predictions
+
+
+```{r}
+
+#RFModel <- readRDS("RFModel.rds")
+RFPredictions <-predict(RFModel, testing)
+postResample(RFPredictions, testing$brand)
+head(RFPredictions)
+
+
+RFPredictionsFinal <-predict(RFModel, brands_incomplete)
+postResample(RFPredictionsFinal, brands_incomplete$brand)
+head(RFPredictionsFinal)
+
+
+```
+
+## RF Variable importance
+
+```{r}
+
+varImp(RFModel)
+
+```
+
+## Decision tree 
+
+```{r decision trees, include=FALSE}
+
+DecTreeModel <- train(brand ~ ., data = training, 
+                      method = "C5.0",
+                      preProcess=c("scale","center"),
+                      trControl= ctrl,
+                      tuneLenght=2)
+
+saveRDS(DecTreeModel, "DecTreeModel.rds")
+```
+
+```{r}
+
+#DecTreeModel <- readRDS("DecTreeModel.rds")
+DTPredictions <-predict(DecTreeModel, testing)
+postResample(DTPredictions, testing$brand)
+
+```
+
+```{r}
+#DTPredictionsFinal <-predict(DecTreeModel, brands_incomplete$brand)
+
+DTPredictionsFinal = predict(DecTreeModel, newdata = brands_incomplete[-7], type ='raw')
+postResample(DTPredictionsFinal, brands_incomplete$brand)
+
+```
+
+```{r}
+#head(DTPredictions)
+
+head(DTPredictionsFinal)
+
+brands_incomplete$brand <- DTPredictionsFinal
+
+head(brands_incomplete)
+
+write.csv(brands_incomplete, file = "BrandsPredicted.csv")
+```
+### GBM
+```{r}
+
+ myGrid <- expand.grid(n.trees = c(150, 175, 200, 225),
+           interaction.depth = c(5, 6, 7, 8, 9),
+           shrinkage = c(0.075, 0.1, 0.125, 0.15, 0.2),
+           n.minobsinnode = c(7, 10, 12, 15))                          
+
+GBMModel <- train(brand~., data=training, 
+                  method='gbm', 
+                  trControl=ctrl,  
+                  metric = "ROC",
+                  preProc = c("center", "scale"),
+                  tuneGrid = myGrid)
+```
+
+```{r}
+
+head(GBMModel)
+
+GBMModel$bestTune
+```
+
+
+
+
+```{r}
+
+saveRDS(GBMModel, "GBMModel.rds")
+
+
+```
+
+```{r}
+
+summary(GBMModel)
+plot(GBMModel)
+```
+
+##KNN Model
+
+```{r}
+KNNModel <- train(brand ~., data = training, method = "knn",
+ trControl=ctrl,
+ preProcess = c("center", "scale"),
+ tuneLength = 10)
+
+KNNModel
+
+saveRDS(KNNModel, "KNNModel.rds")
+```
+
+
+
+
+
+
+
+
+
+

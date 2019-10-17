@@ -1,0 +1,46 @@
+---
+title: "Preprocessing"
+author: "Sasa Lukic"
+date: "16 10 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r load libraries, include=FALSE}
+
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(car)
+
+```
+
+## Data
+
+```{r data}
+
+brands <- read.csv2(file="BelkinElagoComplete.csv")
+
+brands_incomplete <-read.csv2(file="SurveyIncomplete.csv")
+#Glimpse data
+glimpse(brands)
+
+glimpse(brands_incomplete)
+#Show first six rows
+head(brands)
+
+#Check for missing values
+sapply(brands, {function(x) any(is.na(x))})
+```
+
+
+```{r}
+
+
+
+```
